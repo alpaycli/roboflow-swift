@@ -5,6 +5,9 @@
 //  Created by Nicholas Arner on 4/12/22.
 //
 
+#if canImport(UIKit)
+import UIKit
+#endif
 import Foundation
 import CoreML
 import Vision
@@ -110,6 +113,7 @@ public class RFObjectDetectionModel: RFModel {
         }
     }
    
+   #if canImport(UIKit)
    @available(*, renamed: "detect(image:)")
    public override func detect(
        pixelBuffer buffer: CVPixelBuffer,
@@ -124,7 +128,7 @@ public class RFObjectDetectionModel: RFModel {
        // Pass orientation so Vision rotates coordinates into portrait/UI space
        let handler = VNImageRequestHandler(
            cvPixelBuffer: buffer,
-           orientation: options.orientation
+           orientation: exifOrientationForCurrentDeviceOrientation()
        )
 
        do {
@@ -197,6 +201,28 @@ public class RFObjectDetectionModel: RFModel {
            completion(nil, error)
        }
    }
+   
+   func exifOrientationForDeviceOrientation(_ deviceOrientation: UIDeviceOrientation) -> CGImagePropertyOrientation {
+       
+       switch deviceOrientation {
+       case .portraitUpsideDown:
+           return .rightMirrored
+           
+       case .landscapeLeft:
+           return .downMirrored
+           
+       case .landscapeRight:
+           return .upMirrored
+           
+       default:
+           return .leftMirrored
+       }
+   }
+   
+   func exifOrientationForCurrentDeviceOrientation() -> CGImagePropertyOrientation {
+       return exifOrientationForDeviceOrientation(UIDevice.current.orientation)
+   }
+   #endif
 }
 
 import AVFoundation
