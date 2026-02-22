@@ -109,4 +109,117 @@ public class RFObjectDetectionModel: RFModel {
             completion(nil, error)
         }
     }
+   
+   @available(*, renamed: "detect(image:)")
+   public override func detect(
+       pixelBuffer buffer: CVPixelBuffer,
+       options: RFDetectionOptions = RFDetectionOptions(),
+       completion: @escaping (([RFPrediction]?, Error?) -> Void)
+   ) {
+       guard let coreMLRequest = self.coreMLRequest else {
+           completion(nil, "Model initialization failed.")
+           return
+       }
+
+       // Pass orientation so Vision rotates coordinates into portrait/UI space
+       let handler = VNImageRequestHandler(
+           cvPixelBuffer: buffer,
+           orientation: options.orientation
+       )
+
+       do {
+           try handler.perform([coreMLRequest])
+
+           guard let detectResults = coreMLRequest.results as? [VNDetectedObjectObservation] else { return }
+
+           var detections: [RFObjectDetectionPrediction] = []
+
+           for detectResult in detectResults {
+               // Skip low-confidence results early
+               guard detectResult.confidence >= options.confidenceThreshold else { continue }
+
+               var boundingBox = detectResult.boundingBox
+
+               // Mirror X axis for front camera (Vision doesn't do this automatically)
+               if options.cameraPosition == .front {
+                   boundingBox.origin.x = 1 - boundingBox.maxX
+               }
+
+               // Apply optional padding
+               if options.boundingBoxPadding != 1.0 {
+                   let dw = boundingBox.width * CGFloat(options.boundingBoxPadding - 1.0) / 2
+                   let dh = boundingBox.height * CGFloat(options.boundingBoxPadding - 1.0) / 2
+                   boundingBox = boundingBox.insetBy(dx: -dw, dy: -dh)
+               }
+
+               // Flip Y: Vision is bottom-left origin, UIKit is top-left
+               let flippedBox = CGRect(
+                   x: boundingBox.minX,
+                   y: 1 - boundingBox.maxY,
+                   width: boundingBox.width,
+                   height: boundingBox.height
+               )
+
+               let box = VNImageRectForNormalizedRect(flippedBox, Int(buffer.width()), Int(buffer.height()))
+               let confidence = detectResult.confidence
+
+               var label: String = ""
+               if #available(macOS 10.14, *) {
+                   if let recognizedResult = detectResult as? VNRecognizedObjectObservation,
+                      let classLabel = recognizedResult.labels.first?.identifier {
+                       if let intValue = Int(classLabel), !classes.contains(classLabel), intValue < classes.count {
+                           label = classes[intValue]
+                       } else {
+                           label = classLabel
+                       }
+                   }
+               } else {
+                   completion(nil, UnsupportedOSError())
+                   return
+               }
+
+               let detection = RFObjectDetectionPrediction(
+                   x: Float((box.maxX + box.minX) / 2.0),
+                   y: Float((box.maxY + box.minY) / 2.0),
+                   width: Float(box.maxX - box.minX),
+                   height: Float(box.maxY - box.minY),
+                   className: label,
+                   confidence: confidence,
+                   color: hexStringToCGColor(hex: colors[label] ?? "#ff0000"),
+                   box: box
+               )
+               detections.append(detection)
+           }
+
+           completion(detections, nil)
+
+       } catch {
+           completion(nil, error)
+       }
+   }
+}
+
+import AVFoundation
+
+public struct RFDetectionOptions {
+    /// Which camera the buffer came from — affects horizontal mirroring
+    public var cameraPosition: AVCaptureDevice.Position
+    /// Physical device orientation when the frame was captured
+    public var orientation: CGImagePropertyOrientation
+    /// Discard detections below this threshold (0.0 – 1.0)
+    public var confidenceThreshold: Float
+    /// Scale bounding boxes outward by this factor (e.g. 1.1 = 10% padding)
+    public var boundingBoxPadding: Float
+
+    public init(
+        cameraPosition: AVCaptureDevice.Position = .back,
+        orientation: CGImagePropertyOrientation = .right,
+        confidenceThreshold: Float = 0.5,
+        boundingBoxPadding: Float = 1.0
+    ) {
+        self.cameraPosition = cameraPosition
+        self.orientation = orientation
+        self.confidenceThreshold = confidenceThreshold
+        self.boundingBoxPadding = boundingBoxPadding
+    }
 }

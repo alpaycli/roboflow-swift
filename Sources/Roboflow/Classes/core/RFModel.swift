@@ -57,11 +57,32 @@ public class RFModel: NSObject {
     public func detect(pixelBuffer: CVPixelBuffer, completion: @escaping (([RFPrediction]?, Error?) -> Void)) {
         completion(nil, NSError(domain: "RFModel", code: -1, userInfo: [NSLocalizedDescriptionKey: "Error loading model"]))
     }
+   
+   public func detect(
+       pixelBuffer buffer: CVPixelBuffer,
+       options: RFDetectionOptions = RFDetectionOptions(),
+       completion: @escaping (([RFPrediction]?, Error?) -> Void)
+   ) {
+        completion(nil, NSError(domain: "RFModel", code: -1, userInfo: [NSLocalizedDescriptionKey: "Error loading model"]))
+    }
  
     public func detect(pixelBuffer: CVPixelBuffer) async -> ([RFPrediction]?, Error?) {
         if #available(macOS 10.15, *) {
             return await withCheckedContinuation { continuation in
                 detect(pixelBuffer: pixelBuffer) { result, error in
+                    continuation.resume(returning: (result, error))
+                }
+            }
+        } else {
+            // Fallback on earlier versions
+            return (nil, UnsupportedOSError())
+        }
+    }
+
+   public func detect(pixelBuffer: CVPixelBuffer, options: RFDetectionOptions = RFDetectionOptions()) async -> ([RFPrediction]?, Error?) {
+        if #available(macOS 10.15, *) {
+            return await withCheckedContinuation { continuation in
+               detect(pixelBuffer: pixelBuffer, options: options) { result, error in
                     continuation.resume(returning: (result, error))
                 }
             }
