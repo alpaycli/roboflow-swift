@@ -160,7 +160,6 @@ public class RFObjectDetectionModel: RFModel {
                    height: boundingBox.height
                )
 
-               let box = VNImageRectForNormalizedRect(flippedBox, Int(buffer.width()), Int(buffer.height()))
                let confidence = detectResult.confidence
 
                var label: String = ""
@@ -178,17 +177,18 @@ public class RFObjectDetectionModel: RFModel {
                    return
                }
 
-               let detection = RFObjectDetectionPrediction(
-                   x: Float((box.maxX + box.minX) / 2.0),
-                   y: Float((box.maxY + box.minY) / 2.0),
-                   width: Float(box.maxX - box.minX),
-                   height: Float(box.maxY - box.minY),
-                   className: label,
-                   confidence: confidence,
-                   color: hexStringToCGColor(hex: colors[label] ?? "#ff0000"),
-                   box: box
-               )
-               detections.append(detection)
+
+              let detection = RFObjectDetectionPrediction(
+                  x: Float(flippedBox.midX),
+                  y: Float(flippedBox.midY),
+                  width: Float(flippedBox.width),
+                  height: Float(flippedBox.height),
+                  className: label,
+                  confidence: confidence,
+                  color: hexStringToCGColor(hex: colors[label] ?? "#ff0000"),
+                  box: flippedBox
+              )
+              detections.append(detection)
            }
 
            completion(detections, nil)
