@@ -153,12 +153,12 @@ public class RFObjectDetectionModel: RFModel {
                }
 
                // Flip Y: Vision is bottom-left origin, UIKit is top-left
-               let flippedBox = CGRect(
-                   x: boundingBox.minX,
-                   y: 1 - boundingBox.maxY,
-                   width: boundingBox.width,
-                   height: boundingBox.height
-               )
+//               let flippedBox = CGRect(
+//                   x: boundingBox.minX,
+//                   y: 1 - boundingBox.maxY,
+//                   width: boundingBox.width,
+//                   height: boundingBox.height
+//               )
 
                let confidence = detectResult.confidence
 
@@ -179,14 +179,14 @@ public class RFObjectDetectionModel: RFModel {
 
 
               let detection = RFObjectDetectionPrediction(
-                  x: Float(flippedBox.midX),
-                  y: Float(flippedBox.midY),
-                  width: Float(flippedBox.width),
-                  height: Float(flippedBox.height),
+                  x: Float(boundingBox.midX),
+                  y: Float(boundingBox.midY),
+                  width: Float(boundingBox.width),
+                  height: Float(boundingBox.height),
                   className: label,
                   confidence: confidence,
                   color: hexStringToCGColor(hex: colors[label] ?? "#ff0000"),
-                  box: flippedBox
+                  box: boundingBox
               )
               detections.append(detection)
            }
