@@ -128,7 +128,7 @@ public class RFObjectDetectionModel: RFModel {
        // Pass orientation so Vision rotates coordinates into portrait/UI space
        let handler = VNImageRequestHandler(
            cvPixelBuffer: buffer,
-           orientation: exifOrientationForCurrentDeviceOrientation()
+           orientation: options.orientation
        )
 
        do {
